@@ -33,7 +33,7 @@ q_full = (q_full - mean(q_full))/mean(q_full);
 
 %% Figure 2
 % Check git version is correct
-checkGit();
+%checkGit();
 
 % Generate default prior, as described in §4.1
 config = loadDefaultConfig();
@@ -84,7 +84,7 @@ title('(c) Prior over $\tilde{\sigma}$', interpreter='latex')
 
 %% Figure 4
 % Check git version is correct
-checkGit();
+%checkGit();
 
 % Prepare the figure
 f5 = figure(4);
@@ -103,7 +103,7 @@ legend([hu,hq],{'$u''/ \bar{u}$','$q''/ \bar{q}$'},'interpreter','latex','box','
 
 %% Figures 5 - 7    
 % Check git version is correct
-checkGit();
+%checkGit();
 
 % General settings
 config = loadDefaultConfig();
@@ -220,7 +220,7 @@ drawnow
 
 %% Figures 8 - 9
 % Check git version is correct
-checkGit();
+%checkGit();
 
 % General settings
 config = loadDefaultConfig();
@@ -358,7 +358,7 @@ legend([hE, hB],['exp' compose('%d%%',fact*100)],'box','off');
 
 %% Figures 10 - 11
 % Check git version is correct
-checkGit();
+%checkGit();
 
 % General settings
 config = loadDefaultConfig();
