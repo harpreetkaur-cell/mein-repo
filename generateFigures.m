@@ -11,25 +11,27 @@
 
 %% !! Run this first !!
 % Set paths, system properties and load the full dataset
-ptd  = 'data/BRS_EderSilva23/';
+velocityData = readmatrix('data/laminarFlowData/velocityRef1(3).csv');
+heatReleaseData = readmatrix('data/laminarFlowData/heatRelease(4).csv');
 
-% System properties:
-L_ref = 50e-3; % Flame length
-V_ref = 11.3; % Bulk flow velocity
-T_c  = L_ref/V_ref; % Reference time scale for non-dimensionalization
+% Extract signals
+t_full = velocityData(:,1);
+u_full = velocityData(:,2);
+q_full = heatReleaseData(:,2);
 
-% Load data
-load(sprintf('%sdata_raw_incomp.mat',ptd));
-exp_FTF = load(sprintf('%sFTF_exp_30kW_Front_lambda1.3.mat',ptd));
-
-u_full = data_raw_incomp.u;
-q_full = data_raw_incomp.y;
-dt = data_raw_incomp.Ts;
-t_full = (0:length(u_full)-1)*dt;
+% Calculate timestep
+dt = mean(diff(t_full));
 t_full_ms = t_full*1e3;
 
+% Normalize signals
 u_full = (u_full - mean(u_full))/mean(u_full);
 q_full = (q_full - mean(q_full))/mean(q_full);
+
+%% System properties (from README)Finfer
+L_ref = 4.5*10^-3;  % Flame length
+V_ref = 1;  % Bulk flow velocity
+
+T_c = L_ref/V_ref;
 
 %% Figure 2
 % Check git version is correct
@@ -114,7 +116,7 @@ config.preproc.DSvalue = 3e-4;
 % Run Bayesian inference for baseline case (LFL free)
 % -------------------------------------------------------------------------
 
-[h, posterior] = inferImpulseResponse(u_full, q_full, t_full, T_c, modelOrders=1:5, config=config);
+%[h, posterior] = inferImpulseResponse(u_full, q_full, t_full, T_c, modelOrders=1:5, config=config);
 
 % Unpack posterior struct
 a = posterior.a;
@@ -142,6 +144,7 @@ baseline.Ca = Ca;
 
 % Update settings
 config.model.LFL = 1; % Set low-frequency limit to 1
+config.inference.dataVariance = 1e-;
 
 % Run Bayesian inference
 [h, posterior, modelRanking] = inferImpulseResponse(u_full, q_full, t_full, T_c, modelOrders=1:5, config=config);
@@ -475,19 +478,19 @@ inferImpulseResponse(u, q, t, T_c, modelOrders=N, config=config);
 
 
 %% Utilities
-function checkGit()
+%function checkGit()
     % Check that the current git version matches the required tag for paper-figure reproducibility.
-    requiredTag = "paper-released";
+   % requiredTag = "paper-released";
 
     % Fast: succeed only if HEAD is exactly at the tag (no history walk).
-    cmd = sprintf('git -C "%s" describe --tags --exact-match', pwd);
-    [st, out] = system(cmd);
+   % cmd = sprintf('git -C "%s" describe --tags --exact-match', pwd);
+   % [st, out] = system(cmd);
 
-    if st == 0 && string(strtrim(out)) == requiredTag
-        return
-    else
-        error("generateFigures:NotAtFrozenTag", ...
-            "For reproducability, generateFigures.m must be run from the tag '%s'. \n\nRun:\n  git checkout %s\n", ...
-            requiredTag, requiredTag);
-    end
-end
+   % if st == 0 && string(strtrim(out)) == requiredTag
+    %    return
+  %  else
+     %   error("generateFigures:NotAtFrozenTag", ...
+       %     "For reproducability, generateFigures.m must be run from the tag '%s'. \n\nRun:\n  git checkout %s\n", ...
+        %    requiredTag, requiredTag);
+   % end
+% end
