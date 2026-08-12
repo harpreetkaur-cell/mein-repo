@@ -1,4 +1,4 @@
-function [J,dJ,d2J,Ce_ME,J_like,p,b_out] = calculateCost_VarPro(signals,Ce,x,bp,Cb,T_c,config,dataLevel)
+function [J,dJ,d2J,J_like,p,b_out] = calculateCost_VarPro(signals,x,bp,Cb,T_c,config,dataLevel)
 % Evaluate the variable-projection objective for nonlinear parameters.
 % Optimizes only x = [gamma1; beta1; ...], while linear amplitudes n are
 % solved analytically at each call using a MAP linear solve.
@@ -22,7 +22,7 @@ function [J,dJ,d2J,Ce_ME,J_like,p,b_out] = calculateCost_VarPro(signals,Ce,x,bp,
 %   p      - Predicted output signal aligned with observed q.
 %   b_out  - Full parameter vector with projected linear amplitudes.
 
-    if nargin < 8
+    if nargin < 7
         dataLevel = 'coarse';
     end
 
@@ -77,8 +77,8 @@ function [J,dJ,d2J,Ce_ME,J_like,p,b_out] = calculateCost_VarPro(signals,Ce,x,bp,
     end
 
     % Solve linear system for n_MAP given 
-    Hn = (A' * A) ./ Ce + invCn;
-    gn = (A' * q) ./ Ce + invCn * np;
+    Hn = (A' * A) + invCn;
+    gn = (A' * q) + invCn * np;
     if isLFL
         % Include a prior on sum(n)
         Hn = Hn + (1/LFL_sigma^2);
@@ -134,18 +134,18 @@ function [J,dJ,d2J,Ce_ME,J_like,p,b_out] = calculateCost_VarPro(signals,Ce,x,bp,
     r = p - q;
 
     % Data likelihood: 0.5 * r' * inv(Ce) * r
-    J_like = 0.5 * (r' * r) ./ Ce + 0.5 * Nd * log(2*pi*Ce);
+    J_like = 0.5 * (r' * r) + 0.5 * Nd * log(2*pi);
     J = J + J_like;
 
     % Compute gradient of cost w.r.t hrr prediction
-    pJpp = r ./ Ce; 
+    pJpp = r; 
 
     % Compute gradient of cost w.r.t parameters due to residual term
     pJpx = dpdx' * pJpp;
     dJ   = dJ + pJpx;
 
     % First order approximation of the Hessian
-    d2J = d2J + invCx + (dpdx' * dpdx) ./ Ce;
+    d2J = d2J + invCx + (dpdx' * dpdx);
 
     % -------------------------------------------------------------------------
     % Compute the measurement noise that maximizes evidence, as per MacKay
@@ -153,27 +153,7 @@ function [J,dJ,d2J,Ce_ME,J_like,p,b_out] = calculateCost_VarPro(signals,Ce,x,bp,
     % Neural Comp. 1999
     % -------------------------------------------------------------------------
     % Compute the effective number of nonlinear parameters
-    [cholR,flag] = chol(d2J);
-    if flag > 0
-        % Hessian is not positive definite, return effective number of
-        % parameters equals actual number of parameters
-        gamma_x = Nx;
-    else
-        X = cholR \ (cholR' \ invCx); % inv(d2J) * inv(Cb)
-        gamma_x = Nx - trace(X); % Effective number of parameters
-    end
 
-    % Compute the effective number of linear parameters
-    [cholR,flag] = chol(Hn);
-    if flag > 0
-        gamma_n = P;
-    else
-        X = cholR \ (cholR' \ invCn);
-        gamma_n = P - trace(X);
-    end
+    
 
-    % Total effective parameters
-    gamma = gamma_x + gamma_n;
-
-    Ce_ME = (r' * r) ./ (Nd - gamma);
 end

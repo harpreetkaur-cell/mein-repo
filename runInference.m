@@ -6,7 +6,7 @@
 % compressible large eddy simulation for the identification of premixed
 % flame dynamics', International Journal of Spray and Combustion, 2023.
 % 
-% Before running, ensure that the src, utils and data folders are added to
+% Before runninggit, ensure that the src, utils and data folders are added to
 % your path.
 
 %% !! Run this first !!
@@ -49,7 +49,7 @@ config = loadDefaultConfig();
 
 % General settings
 config = loadDefaultConfig();
-config.inference.dataVariance = 1e-8;
+%config.inference.dataVariance = 1e-8;
 config.preproc.DSmode = 'rate';
 config.preproc.DSvalue = 300e-6;
 

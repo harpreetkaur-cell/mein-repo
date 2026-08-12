@@ -11,25 +11,27 @@
 
 %% !! Run this first !!
 % Set paths, system properties and load the full dataset
-ptd  = 'data/BRS_EderSilva23/';
+velocityData = readmatrix('data/laminarFlowData/velocityRef1(3).csv');
+heatReleaseData = readmatrix('data/laminarFlowData/heatRelease(4).csv');
 
-% System properties:
-L_ref = 50e-3; % Flame length
-V_ref = 11.3; % Bulk flow velocity
-T_c  = L_ref/V_ref; % Reference time scale for non-dimensionalization
+% Extract signals
+t_full = velocityData(:,1);
+u_full = velocityData(:,2);
+q_full = heatReleaseData(:,2);
 
-% Load data
-load(sprintf('%sdata_raw_incomp.mat',ptd));
-exp_FTF = load(sprintf('%sFTF_exp_30kW_Front_lambda1.3.mat',ptd));
-
-u_full = data_raw_incomp.u;
-q_full = data_raw_incomp.y;
-dt = data_raw_incomp.Ts;
-t_full = (0:length(u_full)-1)*dt;
+% Calculate timestep
+dt = mean(diff(t_full));
 t_full_ms = t_full*1e3;
 
+% Normalize signals
 u_full = (u_full - mean(u_full))/mean(u_full);
 q_full = (q_full - mean(q_full))/mean(q_full);
+
+%% System properties (from README)
+L_ref = 4.5*10^-3;  % Flame length
+V_ref = 1;  % Bulk flow velocity
+
+T_c = L_ref/V_ref;
 
 %% Figure 2
 % Check git version is correct

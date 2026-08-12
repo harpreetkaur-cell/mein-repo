@@ -60,10 +60,10 @@ for n = 1:Nmod
     signals = prepareSignals(u, q, fs, T_h, config);
     % Call estimate posterior function, which minimizes the negative log posterior and then expands around the MAP estimate
     fprintf('Estimating posterior for %d delays: \n',order)
-    [bMAP{n},CbMAP{n},hMAP{n},CeMAP{n},logML(n),logOF(n),logBFL(n)] = estimatePosterior(signals, bp, Cb, T_c, config);
+    [bMAP{n},CbMAP{n},hMAP{n},logML(n),logOF(n),logBFL(n)] = estimatePosterior(signals, bp, Cb, T_c, config);
 
     if config.diagnostics.plotCandidateHRRFit
-        [~,~,~,~,~,p] = calculateCost(signals,CeMAP{n},bMAP{n},bp,Cb,T_c, config);
+        [~,~,~,~,~,p] = calculateCost(signals,bMAP{n},bp,Cb,T_c, config);
         figure(9001)
         if n == 1
             plot(signals.time_domain.coarse.t,signals.time_domain.coarse.q,'color',getColours(2),'lineWidth',2);
@@ -106,20 +106,17 @@ h.time  = h.time .* T_c; % Undo time nondimensionalization
 bMAP    = bMAP{indMax};
 CbMAP   = CbMAP{indMax};
 [a,~,~,Ca] = mapParameterToPhysicalSpace(bMAP,T_c,CbMAP);
-Ce      = CeMAP{indMax};
 
 posterior.a = a;
 posterior.Ca = Ca;
 posterior.b = bMAP;
 posterior.Cb = CbMAP;
-posterior.Ce = Ce;
 
 if config.inference.runMCMC
     % Run MCMC for the best model
     % ------------------------ MCMC Sampling -----------------------
     [bp, Cb, paramNames] = generatePrior(modelOrders(indMax),T_c,config);
-    Ce = CeMAP{indMax};
-    logPosterior = @(b) -calculateCost(signals,Ce,b,bp,Cb,T_c,config); % returns log posterior up to constant
+    logPosterior = @(b) -calculateCost(signals,b,bp,Cb,T_c,config); % returns log posterior up to constant
     % Use MAP covariance scaled for proposal
     d = numel(bMAP);
     scale = (2.38^2 / d);

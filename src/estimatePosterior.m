@@ -1,4 +1,4 @@
-function [bMAP,CbMAP,hMAP,Ce,logML,logOF,logBFL] = estimatePosterior(signals,bp,Cb,T_c,config)
+function [bMAP,CbMAP,hMAP,logML,logOF,logBFL] = estimatePosterior(signals,bp,Cb,T_c,config)
 % Estimate MAP posterior quantities using multi-start nonlinear
 % optimization. Reconstructs the full MAP parameter vector, and computes
 % Laplace-based covariance and model scores. Optimizer is based on
@@ -36,8 +36,7 @@ function [bMAP,CbMAP,hMAP,Ce,logML,logOF,logBFL] = estimatePosterior(signals,bp,
     tolFn       = config.optimizer.functionChangeTolerance;
     useParallel = config.optimizer.useParallel;  
     needLogML   = strcmp(config.optimizer.solnSelection,'logML');
-    dataVariance= config.inference.dataVariance;
-    inferNoise  = isempty(dataVariance);
+    %dataVariance= config.inference.dataVariance;
 
     % Get the size of the full parameter vector,b, then calculate the
     % number of nonlinear parameters, x
@@ -51,13 +50,6 @@ function [bMAP,CbMAP,hMAP,Ce,logML,logOF,logBFL] = estimatePosterior(signals,bp,
     lamInc0 = 2;               % Base lambda increment for rejected step
     lamDec  = 3;               % Base lambda decrement for accepted step
     p       = 3;               % Lambda scaling exponent  
-
-    % Set initial uncertainty
-    if inferNoise
-        Ce0 = 1e-4;
-    else
-        Ce0 = dataVariance;
-    end
 
     % Optimize only nonlinear parameters x = [gamma1;beta1;...]
 
@@ -73,7 +65,6 @@ function [bMAP,CbMAP,hMAP,Ce,logML,logOF,logBFL] = estimatePosterior(signals,bp,
     % Preallocate outputs
     % -------------------------
     J_hist      = inf(1,rstrts);
-    Ce_hist     = nan(1,rstrts);
     J_like_hist = nan(1,rstrts);
     logML_hist  = -inf(1,rstrts);
     b_hist      = nan(Nb_full, rstrts);
@@ -84,15 +75,17 @@ function [bMAP,CbMAP,hMAP,Ce,logML,logOF,logBFL] = estimatePosterior(signals,bp,
     % -------------------------
     if useParallel
         parfor sp = 1:rstrts
-            [J_hist(sp),Ce_hist(sp),J_like_hist(sp),logML_hist(sp),b_hist(:,sp),BFGS_correction(:,:,sp)] = ...
-                runOneRestart(sp, x_samples(:,sp), Ce0, bp, Cb, T_c, config, ...
-                              maxIter, tolOpt, tolStep, tolFn, lamInc0, lamDec, p, I, needLogML, inferNoise, signals);
+            [J_hist(sp),J_like_hist(sp),logML_hist(sp),b_hist(:,sp),BFGS_correction(:,:,sp)] = ...
+                runOneRestart(sp, x_samples(:,sp), bp, Cb, T_c, config, ...
+              maxIter, tolOpt, tolStep, tolFn, lamInc0, lamDec, p, I, ...
+              needLogML, signals)
         end
     else
         for sp = 1:rstrts
-            [J_hist(sp),Ce_hist(sp),J_like_hist(sp),logML_hist(sp),b_hist(:,sp),BFGS_correction(:,:,sp)] = ...
-                runOneRestart(sp, x_samples(:,sp), Ce0, bp, Cb, T_c, config, ...
-                              maxIter, tolOpt, tolStep, tolFn, lamInc0, lamDec, p, I, needLogML, inferNoise, signals);
+            [J_hist(sp),J_like_hist(sp),logML_hist(sp),b_hist(:,sp),BFGS_correction(:,:,sp)] = ...
+                runOneRestart(sp, x_samples(:,sp), bp, Cb, T_c, config, ...
+              maxIter, tolOpt, tolStep, tolFn, lamInc0, lamDec, p, I, ...
+              needLogML, signals);
         end
     end
 
@@ -105,7 +98,6 @@ function [bMAP,CbMAP,hMAP,Ce,logML,logOF,logBFL] = estimatePosterior(signals,bp,
     end
 
     bMAP = b_hist(:,indMin);
-    Ce   = Ce_hist(indMin);
     J_MAP = J_hist(indMin);
     J_like = J_like_hist(indMin);
     BFGS_correction = BFGS_correction(:,:,indMin);
@@ -115,11 +107,11 @@ function [bMAP,CbMAP,hMAP,Ce,logML,logOF,logBFL] = estimatePosterior(signals,bp,
         case 'GN'
             % Calculate the full Gauss-Newton hessian with one call to
             % calculateCost without variable projection
-            [~,~,Hfull] = calculateCost(signals,Ce,bMAP,bp,Cb,T_c,config);
+            [~,~,Hfull] = calculateCost(signals,bMAP,bp,Cb,T_c,config);
         case 'BFGS'
             % Calculate the full Gauss-Newton hessian with one call to
             % calculateCost without variable projection
-            [~,~,Hfull] = calculateCost(signals,Ce,bMAP,bp,Cb,T_c,config);
+            [~,~,Hfull] = calculateCost(signals,bMAP,bp,Cb,T_c,config);
             % Find the entries of Hfull that correspond to the nonlinear
             % parameters, x
             ind_x_in_b = reshape([3*(1:P)-1; 3*(1:P)], [], 1); % [gamma1; beta1; gamma2; beta2; ...]
@@ -127,7 +119,7 @@ function [bMAP,CbMAP,hMAP,Ce,logML,logOF,logBFL] = estimatePosterior(signals,bp,
             % (linear entries are exact from Gauss-Newton)
             Hfull(ind_x_in_b, ind_x_in_b) = Hfull(ind_x_in_b, ind_x_in_b) + BFGS_correction;
         otherwise
-            Hfull = FDHessian(signals, Ce, bMAP, bp, Cb, T_c, config);
+            Hfull = FDHessian(signals, bMAP, bp, Cb, T_c, config);
     end
 
     % Robust inverse of Hessian to get posterior covariance
@@ -158,20 +150,21 @@ function [bMAP,CbMAP,hMAP,Ce,logML,logOF,logBFL] = estimatePosterior(signals,bp,
     logOF  = logML - logBFL;
 end
 
-function [J,Ce,J_like,logML,b_full,BFGS_correction,exitMessage] = runOneRestart(~, x0, Ce0, bp, Cb, T_c, config, ...
-                                                                               maxIter, tolOpt, tolStep, tolFn, lamInc0, lamDec, p, I, needLogML, inferNoise, signals)
-    Ce = Ce0;
+function [J,J_like,logML,b_full,BFGS_correction,exitMessage] = runOneRestart( ...
+    ~, x0, bp, Cb, T_c, config, ...
+    maxIter, tolOpt, tolStep, tolFn, lamInc0, lamDec, p, I, needLogML, signals)
+
     x  = x0;
 
     % Initial cost
-    [f, g, H, ~, J_like, ~, b_full] = calculateCost_VarPro(signals,Ce,x,bp,Cb,T_c,config);
+    [f, g, H, J_like, ~, b_full] = calculateCost_VarPro(signals,x,bp,Cb,T_c,config);
 
     % BFGS curvature approximation
     A = 1e-10*eye(size(H));
 
     % Initial damping
     lambda = max(diag(H));
-    lamInc = lamInc0;
+    %lamInc = lamInc0;
 
     db = ones(size(x));
     df = 1;
@@ -204,7 +197,7 @@ function [J,Ce,J_like,logML,b_full,BFGS_correction,exitMessage] = runOneRestart(
         db = -H_reg \ g;
         predictedImprovement = 0.5 * db' * (lambda * db - g);
 
-        [f_new, g_new, H_new, Ce_new, J_like_new, ~, b_full_new] = calculateCost_VarPro(signals, Ce, x + db, bp, Cb, T_c, config);
+        [f_new, g_new, H_new, J_like_new, ~, b_full_new] = calculateCost_VarPro(signals, x + db, bp, Cb, T_c, config);
 
         actualImprovement = f - f_new;
 
@@ -247,15 +240,14 @@ function [J,Ce,J_like,logML,b_full,BFGS_correction,exitMessage] = runOneRestart(
             end
 
             % Step towards MML data noise
-            if inferNoise && (k > 5)
-                Ce = 0.6*Ce + 0.4*Ce_new;
-                [f, g, H, ~, J_like, ~, b_full] = calculateCost_VarPro(signals, Ce, x, bp, Cb, T_c, config);
-                H = (H + H')/2;
-            end
-        else % Reject step
+          %  if inferNoise && (k > 5)
+          %      [f, g, H, J_like, ~, b_full] = calculateCost_VarPro(signals, x, bp, Cb, T_c, config);
+           %     H = (H + H')/2;
+           % end
+      %  else % Reject step
             % Scale trust region
             lambda = lambda * lamInc;
-            lamInc = 2 * lamInc;
+           % lamInc = 2 * lamInc;
         end
     end
 
@@ -273,8 +265,8 @@ function [J,Ce,J_like,logML,b_full,BFGS_correction,exitMessage] = runOneRestart(
 
     % Optional per-restart logML (needed if selecting by logML)
     if needLogML
-        J_full = calculateCost(signals, Ce, b_full, bp, Cb, T_c, config);
-        H_full = FDHessian(signals, Ce, b_full, bp, Cb, T_c, config);
+        J_full = calculateCost(signals, b_full, bp, Cb, T_c, config);
+        H_full = FDHessian(signals, b_full, bp, Cb, T_c, config);
         H_full = (H_full + H_full')/2;
         [R,pc] = chol(H_full);
         if pc == 0
@@ -302,14 +294,14 @@ function [xp, Cx_diag] = extractNonlinPrior(bp,Cb,P)
     end
 end
 
-function H = FDHessian(signals, Ce, b, bp, Cb, T_c, config, dataLevel)
+function H = FDHessian(signals, b, bp, Cb, T_c, config, dataLevel)
 
     if nargin < 8
         dataLevel = 'coarse';
     end
 
     % Build log-posterior at fixed Ce
-    logPost = @(x) -calculateCost(signals, Ce, x, bp, Cb, T_c, config, dataLevel);
+    logPost = @(x) -calculateCost(signals, x, bp, Cb, T_c, config, dataLevel);
 
     % Numerical Hessian at MAP
     Nb = length(b);

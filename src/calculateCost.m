@@ -1,4 +1,4 @@
-function [J,dJ,d2J,Ce_ME,J_like,p] = calculateCost(signals,Ce,b,bp,Cb,T_c,config,dataLevel)
+function [J,dJ,d2J, J_like,p] = calculateCost(signals,b,bp,Cb,T_c,config,dataLevel)
 % Evaluate negative log-posterior, gradient, and Gauss-Newton Hessian.
 % Combines parameter priors with data misfit from convolving the inferred
 % impulse response with the input signal.
@@ -21,7 +21,7 @@ function [J,dJ,d2J,Ce_ME,J_like,p] = calculateCost(signals,Ce,b,bp,Cb,T_c,config
 %   J_like - Data likelihood contribution to J.
 %   p      - Predicted output signal aligned with observed q.
 
-    if nargin < 8
+    if nargin < 7
         dataLevel = 'coarse';
     end
 
@@ -89,14 +89,14 @@ function [J,dJ,d2J,Ce_ME,J_like,p] = calculateCost(signals,Ce,b,bp,Cb,T_c,config
     r = p - q;
     
     % Data likelihood: 0.5 * r' * inv(Ce) * r
-    J_like = 0.5 * (r' * r) ./ Ce; 
+    J_like = 0.5 * (r' * r); 
     % Include the Gaussian normalization constant
-    J_like = J_like + 0.5 .* Nd .* log(2 .* pi .* Ce); 
+    J_like = J_like + 0.5 .* Nd .* log(2 .* pi); 
 
     J = J + J_like;
 
     % Compute gradient of cost w.r.t hrr prediction
-    pJpp = r ./ Ce; 
+    pJpp = r; 
 
     % Compute gradient of cost w.r.t parameters due to residual term
     pJpb_r = dpdb' * pJpp;
@@ -105,7 +105,7 @@ function [J,dJ,d2J,Ce_ME,J_like,p] = calculateCost(signals,Ce,b,bp,Cb,T_c,config
     dJ = dJ + pJpb_r;
 
     % First order approximation of Hessian
-    d2J = d2J + invCb + (dpdb' * dpdb) ./ Ce;
+    d2J = d2J + invCb + (dpdb' * dpdb);
 
     % -------------------------------------------------------------------------
     % Compute the measurement noise that maximizes evidence, as per MacKay
@@ -113,14 +113,5 @@ function [J,dJ,d2J,Ce_ME,J_like,p] = calculateCost(signals,Ce,b,bp,Cb,T_c,config
     % Neural Comp. 1999
     % -------------------------------------------------------------------------
     % Compute the effective number of parameters
-    [cholR,flag] = chol(d2J);
-    if flag > 0
-        % Hessian is not positive definite, return effective number of
-        % parameters equals actual number of parameters
-        gamma = Nb;
-    else
-        X = cholR \ (cholR' \ invCb); % inv(d2J) * inv(Cb)
-        gamma = Nb - trace(X); % Effective number of parameters
-    end
-    Ce_ME = (r' * r) ./ (Nd - gamma);
+   
 end
