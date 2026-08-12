@@ -41,7 +41,6 @@ T_c = L_ref/V_ref;
 
 % Generate default prior, as described in §4.1
 config = loadDefaultConfig();
-config.inference.dataVariance = 1e-12;
 [mu_b,Cb] = generatePrior(1,1,config);
 
 %% Figures 5 - 7    
@@ -50,6 +49,7 @@ config.inference.dataVariance = 1e-12;
 
 % General settings
 config = loadDefaultConfig();
+config.inference.dataVariance = 1e-8;
 config.preproc.DSmode = 'rate';
 config.preproc.DSvalue = 300e-6;
 
