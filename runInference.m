@@ -27,4 +27,11 @@ config = loadDefaultConfig();
 config.preproc.DSmode = 'rate';
 config.preproc.DSvalue = 3e-4;
 
-[h, posterior] = inferImpulseResponse(u_full, q_full, t_full, T_c, modelOrders=1:5, config=config);
+% Noise variant 1: fix the data variance to a small value close to the
+% naturally evidence-maximized estimate (~2.26e-6), instead of estimating
+% it via evidence maximization. Values far below this break the Occam
+% factor balance in the evidence approximation and give unstable,
+% unphysically inflated model orders (see sweep results).
+config.inference.dataVariance = 1e-6;
+
+[h, posterior, modelRanking] = inferImpulseResponse(u_full, q_full, t_full, T_c, modelOrders=1:5, config=config);
