@@ -11,29 +11,28 @@
 
 %% !! Run this first !!
 % Set paths, system properties and load the full dataset
-ptd  = 'data/BRS_EderSilva23/';
+ptd  = 'data/Laminar/';
 
 % System properties:
-L_ref = 50e-3; % Flame length
-V_ref = 11.3; % Bulk flow velocity
+L_ref = 4.5e-3; % Flame length
+V_ref = 1; % Bulk flow velocity
 T_c  = L_ref/V_ref; % Reference time scale for non-dimensionalization
 
 % Load data
-load(sprintf('%sdata_raw_incomp.mat',ptd));
-exp_FTF = load(sprintf('%sFTF_exp_30kW_Front_lambda1.3.mat',ptd));
+rawQ = readmatrix(sprintf('%sheatRelease.csv',ptd));
+rawU = readmatrix(sprintf('%svelocityRef1.csv',ptd));
+exp_FTF = load(sprintf('%sFTF_exp_30kW_Front_lambda1.3.mat','data/BRS_EderSilva23/'));
 
-u_full = data_raw_incomp.u;
-q_full = data_raw_incomp.y;
-dt = data_raw_incomp.Ts;
-t_full = (0:length(u_full)-1)*dt;
+t_full = rawU(:,1);
+u_full = rawU(:,2);
+q_full = rawQ(:,2);
+dt = t_full(2) - t_full(1);
 t_full_ms = t_full*1e3;
 
 u_full = (u_full - mean(u_full))/mean(u_full);
 q_full = (q_full - mean(q_full))/mean(q_full);
 
 %% Figure 2
-% Check git version is correct
-checkGit();
 
 % Generate default prior, as described in §4.1
 config = loadDefaultConfig();
@@ -83,8 +82,6 @@ ylabel('$p(\tilde{\sigma}_i)$', interpreter='latex')
 title('(c) Prior over $\tilde{\sigma}$', interpreter='latex')
 
 %% Figure 4
-% Check git version is correct
-checkGit();
 
 % Prepare the figure
 f5 = figure(4);
@@ -102,8 +99,6 @@ ylabel('normalized fluctuation')
 legend([hu,hq],{'$u''/ \bar{u}$','$q''/ \bar{q}$'},'interpreter','latex','box','off');
 
 %% Figures 5 - 7    
-% Check git version is correct
-checkGit();
 
 % General settings
 config = loadDefaultConfig();
@@ -219,8 +214,6 @@ box on
 drawnow
 
 %% Figures 8 - 9
-% Check git version is correct
-checkGit();
 
 % General settings
 config = loadDefaultConfig();
@@ -357,8 +350,6 @@ nexttile(2)
 legend([hE, hB],['exp' compose('%d%%',fact*100)],'box','off');
 
 %% Figures 10 - 11
-% Check git version is correct
-checkGit();
 
 % General settings
 config = loadDefaultConfig();
@@ -474,20 +465,3 @@ inferImpulseResponse(u, q, t, T_c, modelOrders=N, config=config);
 
 
 
-%% Utilities
-function checkGit()
-    % Check that the current git version matches the required tag for paper-figure reproducibility.
-    requiredTag = "paper-released";
-
-    % Fast: succeed only if HEAD is exactly at the tag (no history walk).
-    cmd = sprintf('git -C "%s" describe --tags --exact-match', pwd);
-    [st, out] = system(cmd);
-
-    if st == 0 && string(strtrim(out)) == requiredTag
-        return
-    else
-        error("generateFigures:NotAtFrozenTag", ...
-            "For reproducability, generateFigures.m must be run from the tag '%s'. \n\nRun:\n  git checkout %s\n", ...
-            requiredTag, requiredTag);
-    end
-end
