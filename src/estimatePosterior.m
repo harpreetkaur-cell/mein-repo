@@ -37,7 +37,7 @@ function [bMAP,CbMAP,hMAP,Ce,logML,logOF,logBFL] = estimatePosterior(signals,bp,
     useParallel = config.optimizer.useParallel;  
     needLogML   = strcmp(config.optimizer.solnSelection,'logML');
     dataVariance= config.inference.dataVariance;
-    inferNoise  = isempty(dataVariance);
+    inferNoise  = isempty(dataVariance) && config.inference.includeNoise;
 
     % Get the size of the full parameter vector,b, then calculate the
     % number of nonlinear parameters, x
@@ -55,6 +55,8 @@ function [bMAP,CbMAP,hMAP,Ce,logML,logOF,logBFL] = estimatePosterior(signals,bp,
     % Set initial uncertainty
     if inferNoise
         Ce0 = 1e-4;
+    elseif isempty(dataVariance)
+        Ce0 = 1; % Placeholder; unused since the noise term is excluded from the cost
     else
         Ce0 = dataVariance;
     end

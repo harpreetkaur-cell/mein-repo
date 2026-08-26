@@ -105,6 +105,10 @@ config = loadDefaultConfig();
 config.preproc.DSmode = 'rate';
 config.preproc.DSvalue = 3e-4;
 
+% Noise variant 2: remove the noise term from the cost entirely, treating
+% the data as noise-free.
+config.inference.includeNoise = false;
+
 % -------------------------------------------------------------------------
 % Run Bayesian inference for baseline case (LFL free)
 % -------------------------------------------------------------------------
@@ -221,6 +225,10 @@ config.preproc.DSmode = 'rate';
 config.preproc.DSvalue = 3e-4;
 config.model.T_h = 0.015;
 config.model.LFL = 1;
+
+% Noise variant 2: remove the noise term from the cost entirely, treating
+% the data as noise-free.
+config.inference.includeNoise = false;
 
 fact = [1 0.2 0.15 0.05];
 cols = getColours([1 4],length(fact));
@@ -359,6 +367,10 @@ config.model.T_h = 0.015;
 config.model.LFL = 1;
 config.inference.runMCMC = true;
 config.inference.MCMCiter = 500000;
+
+% Noise variant 2: remove the noise term from the cost entirely, treating
+% the data as noise-free.
+config.inference.includeNoise = false;
 
 % Set the data reduction factors
 fact = [1 0.2 0.05];

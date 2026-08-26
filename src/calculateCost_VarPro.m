@@ -76,7 +76,10 @@ function [J,dJ,d2J,Ce_ME,J_like,p,b_out] = calculateCost_VarPro(signals,Ce,x,bp,
         A(:,ii) = conv(u, G(:,ii), 'valid') .* dt;
     end
 
-    % Solve linear system for n_MAP given 
+    % Solve linear system for n_MAP given
+    % (When includeNoise is false, Ce is fixed at the placeholder value 1,
+    % so dividing by Ce here is a no-op and correctly reduces to the
+    % noise-free normal equations.)
     Hn = (A' * A) ./ Ce + invCn;
     gn = (A' * q) ./ Ce + invCn * np;
     if isLFL
@@ -133,12 +136,17 @@ function [J,dJ,d2J,Ce_ME,J_like,p,b_out] = calculateCost_VarPro(signals,Ce,x,bp,
     % Compute the residual discrepancy
     r = p - q;
 
-    % Data likelihood: 0.5 * r' * inv(Ce) * r
-    J_like = 0.5 * (r' * r) ./ Ce + 0.5 * Nd * log(2*pi*Ce);
+    if config.inference.includeNoise
+        % Data likelihood: 0.5 * r' * inv(Ce) * r
+        J_like = 0.5 * (r' * r) ./ Ce + 0.5 * Nd * log(2*pi*Ce);
+    else
+        % Noise term excluded: data cost reduces to plain sum of squares
+        J_like = 0.5 * (r' * r);
+    end
     J = J + J_like;
 
     % Compute gradient of cost w.r.t hrr prediction
-    pJpp = r ./ Ce; 
+    pJpp = r ./ Ce;
 
     % Compute gradient of cost w.r.t parameters due to residual term
     pJpx = dpdx' * pJpp;

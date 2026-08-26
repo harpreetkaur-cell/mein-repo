@@ -36,6 +36,7 @@ config.model.LFL_sigma = 0.01; % Uncertainty in the low frequency limit
 
 % Inference settings
 config.inference.dataVariance = [];     % Empty to infer noise by maximizing marginal likelihood
+config.inference.includeNoise = true;   % Set false to remove the noise term from the cost entirely (treats data as noise-free)
 % -- MCMC settings
 config.inference.runMCMC = false;
 config.inference.plotMCMC = false;

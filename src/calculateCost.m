@@ -87,16 +87,24 @@ function [J,dJ,d2J,Ce_ME,J_like,p] = calculateCost(signals,Ce,b,bp,Cb,T_c,config
 
     % Compute the residual discrepancy
     r = p - q;
-    
-    % Data likelihood: 0.5 * r' * inv(Ce) * r
-    J_like = 0.5 * (r' * r) ./ Ce; 
-    % Include the Gaussian normalization constant
-    J_like = J_like + 0.5 .* Nd .* log(2 .* pi .* Ce); 
+
+    if config.inference.includeNoise
+        % Data likelihood: 0.5 * r' * inv(Ce) * r
+        J_like = 0.5 * (r' * r) ./ Ce;
+        % Include the Gaussian normalization constant
+        J_like = J_like + 0.5 .* Nd .* log(2 .* pi .* Ce);
+    else
+        % Noise term excluded: data cost reduces to plain sum of squares
+        J_like = 0.5 * (r' * r);
+    end
 
     J = J + J_like;
 
     % Compute gradient of cost w.r.t hrr prediction
-    pJpp = r ./ Ce; 
+    % (When includeNoise is false, Ce is fixed at the placeholder value 1,
+    % so dividing by Ce here is a no-op and correctly reduces to the
+    % noise-free gradient.)
+    pJpp = r ./ Ce;
 
     % Compute gradient of cost w.r.t parameters due to residual term
     pJpb_r = dpdb' * pJpp;
