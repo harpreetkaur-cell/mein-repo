@@ -104,6 +104,7 @@ legend([hu,hq],{'$u''/ \bar{u}$','$q''/ \bar{q}$'},'interpreter','latex','box','
 config = loadDefaultConfig();
 config.preproc.DSmode = 'rate';
 config.preproc.DSvalue = 3e-4;
+config.inference.dataVariance = 3e-6; % from Ce sweep, smallest value avoiding non-PD Hessian jitter
 
 % -------------------------------------------------------------------------
 % Run Bayesian inference for baseline case (LFL free)
@@ -219,6 +220,7 @@ drawnow
 config = loadDefaultConfig();
 config.preproc.DSmode = 'rate';
 config.preproc.DSvalue = 3e-4;
+config.inference.dataVariance = 3e-6; % from Ce sweep, smallest value avoiding non-PD Hessian jitter
 config.model.T_h = 0.015;
 config.model.LFL = 1;
 
@@ -355,6 +357,7 @@ legend([hE, hB],['exp' compose('%d%%',fact*100)],'box','off');
 config = loadDefaultConfig();
 config.preproc.DSmode = 'rate';
 config.preproc.DSvalue = 3e-4;
+config.inference.dataVariance = 3e-6; % from Ce sweep, smallest value avoiding non-PD Hessian jitter
 config.model.T_h = 0.015;
 config.model.LFL = 1;
 config.inference.runMCMC = true;

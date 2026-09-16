@@ -26,5 +26,6 @@ q_full = (q_full - mean(q_full))/mean(q_full);
 config = loadDefaultConfig();
 config.preproc.DSmode = 'rate';
 config.preproc.DSvalue = 3e-4;
+config.inference.dataVariance = 3e-6; % from Ce sweep, smallest value avoiding non-PD Hessian jitter
 
 [h, posterior] = inferImpulseResponse(u_full, q_full, t_full, T_c, modelOrders=1:5, config=config);
