@@ -15,7 +15,7 @@ function f1 = plotModelComparisonH(log_ML_array,log_OF_array,log_BFL_array,varar
     N_mod = length(log_ML_array);
 
     % Parse input arguments
-    defaultColours = [colourLibrary(3,'gradient',[1 8]); colourLibrary(2)];
+    defaultColours = getColours([1 2 3 4]);
     defaultModelLabels = compose('Model %d',(1:N_mod));
     defaultFontSize = 14;
     defaultFontName = 'Times';
