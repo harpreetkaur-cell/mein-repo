@@ -106,7 +106,7 @@ legend([hu,hq],{'$u''/ \bar{u}$','$q''/ \bar{q}$'},'interpreter','latex','box','
 config = loadDefaultConfig();
 config.preproc.DSmode = 'rate';
 config.preproc.DSvalue = 3e-4;
-config.inference.dataVariance = 3e-6; 
+config.inference.dataVariance = 1e-5; % robust value within the stable plateau of the Ce sweep
 
 % Bayesian impulse response
 [hBay, ~] = inferImpulseResponse(u_full, q_full, t_full, T_c, modelOrders=1:5, config=config);
