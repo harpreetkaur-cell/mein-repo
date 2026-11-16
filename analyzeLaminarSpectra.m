@@ -52,11 +52,13 @@ end
 a = posterior.a;
 nPulse = numel(a)/3;
 
-% Model spectrum |H|^2 * S_uu with 95% credible interval of the gain
-FTF = calculateFTF(a, 2*pi*f, posterior.Ca);
-Pmod = FTF.gain.^2 .* Puu;
-Pmod_lo = max(FTF.gain - FTF.gain95lo, 0).^2 .* Puu;
-Pmod_hi = (FTF.gain + FTF.gain95hi).^2 .* Puu;
+% Model prediction q_BI = h_Gauss * u in the time domain (causal h, as in the inference)
+[~, ~, ~, t_max] = generatePrior(nPulse, T_c, config);
+t_h = (0:ceil(t_max*T_c*fs))'/fs;
+hBI = calculateImpulseResponse(posterior.b, t_h./T_c, T_c);
+qBI = fftfilt(hBI/fs, u_full);
+qBI = qBI(numel(t_h):end);              % skip the start-up of the convolution
+[Pmod, ~, PmodCI] = pwelch(qBI, win, nOverlap, nWelch, fs, 'ConfidenceLevel', 0.95);
 
 %% Plots
 red  = [0.85 0.10 0.10];
@@ -79,7 +81,7 @@ legend([p1 p2], 'Forcing signal u', 'Forced response q', 'location', 'southwest'
 % PSD of q: data vs. Bayesian model 
 figure(2); clf
 patchCI(f(ok), PqqCI(ok,:), grey); hold on
-patchCI(f(ok), [Pmod_lo(ok) Pmod_hi(ok)], red);
+patchCI(f(ok), PmodCI(ok,:), red);
 p1 = loglog(f(ok), Pqq(ok), 'k', 'lineWidth', 1);
 p2 = loglog(f(ok), Pmod(ok), 'color', red, 'lineWidth', 1.5);
 xline(f_cut, 'k--', sprintf('f_{cut} = %.0f Hz', f_cut), 'labelVerticalAlignment', 'bottom');

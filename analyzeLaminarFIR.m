@@ -3,7 +3,6 @@
 % Figure 1: evidence over the FIR length
 % Figure 2: impulse response, FIR vs. Gaussian pulse model
 % Figure 3: FTF gain and phase, FIR vs. Gaussian pulse model
-% Figure 4: autocorrelation and PSD of the model error
 
 %% Load data
 ptd = 'data/Laminar/';
@@ -25,8 +24,6 @@ config.inference.dataVariance = 1e-5;
 
 T_IR = (1:0.25:5)*T_c;  % candidate FIR lengths
 nSamples = 5000;        % posterior samples for the FTF credible intervals
-nWelch = 128;           % Welch segment length on the down-sampled data
-lagMax = 3;             % maximum lag of the autocorrelation in units of T_c
 rng(1);
 
 %% Gaussian pulse model (cached)
@@ -80,31 +77,9 @@ FIR.phase95hi =  quantile(dphase, 0.975, 2);
 
 DTD = calculateFTF(posterior.a, 2*pi*f, posterior.Ca);
 
-%% Model error and FIR residual on the common valid region
-hGauss = calculateImpulseResponse(posterior.b, (0:nMax-1)'*s.dt ./ T_c, T_c);
-qFIR   = X(:,1:N)*m;
-qGauss = X*hGauss;
-epsModel = qFIR - qGauss;            % = (h_FIR - h_Gauss)*u
-rFIR     = y - qFIR;
-
-nLag = round(lagMax*T_c/s.dt);
-tLag = (0:nLag)'*s.dt;
-whiteBand = 1.96/sqrt(numel(y));     % 95% band of the sample AC of white noise
-[acEps, lags] = xcorr(epsModel, nLag, 'coeff');
-acEps = acEps(lags >= 0);
-acR = xcorr(rFIR, nLag, 'coeff');
-acR = acR(lags >= 0);
-
-win = blackmanharris(nWelch);
-nOverlap = round(0.661*nWelch);
-[Peps, fW, PepsCI] = pwelch(epsModel, win, nOverlap, nWelch, s.fs, 'ConfidenceLevel', 0.95);
-[PrFIR, ~, PrFIRCI] = pwelch(rFIR, win, nOverlap, nWelch, s.fs, 'ConfidenceLevel', 0.95);
-okW = fW > 0;
-
 %% Plots
 red  = [0.85 0.10 0.10];
 blue = [0.10 0.10 0.85];
-grey = [0.75 0.75 0.75];
 nPulse = numel(posterior.a)/3;
 
 % Evidence over the FIR length (cf. Zimmermann Fig. 9)
@@ -135,23 +110,6 @@ subplot(2,1,2)
 errorpatch(f, FIR.phase, FIR.phase95lo, FIR.phase95hi, 'color', blue); hold on
 errorpatch(f, DTD.phase, DTD.phase95lo, DTD.phase95hi, 'color', red);
 xlabel('f [Hz]'); ylabel('Phase [rad]'); xlim([0 s.fs/2]); grid on
-
-% Model error and FIR residual 
-figure(4); clf
-subplot(2,1,1)
-fill([0 lagMax lagMax 0], whiteBand*[-1 -1 1 1], grey, 'faceAlpha', 0.5, 'edgeColor', 'none'); hold on
-p1 = plot(tLag/T_c, acEps, 'color', red, 'lineWidth', 1.2);
-p2 = plot(tLag/T_c, acR, '--', 'color', blue, 'lineWidth', 1.2);
-yline(0, 'k:');
-xlabel('\tau/T_c [-]'); ylabel('AC [-]'); xlim([0 lagMax]); ylim([-0.5 1]); grid on
-legend([p1 p2], 'Model error (h_{FIR} - h_{Gauss})*u', 'FIR residual', 'location', 'northeast')
-subplot(2,1,2)
-fill([fW(okW); flipud(fW(okW))], [PepsCI(okW,1); flipud(PepsCI(okW,2))], red, 'faceAlpha', 0.2, 'edgeColor', 'none'); hold on
-fill([fW(okW); flipud(fW(okW))], [PrFIRCI(okW,1); flipud(PrFIRCI(okW,2))], blue, 'faceAlpha', 0.2, 'edgeColor', 'none');
-loglog(fW(okW), Peps(okW), 'color', red, 'lineWidth', 1.2);
-loglog(fW(okW), PrFIR(okW), '--', 'color', blue, 'lineWidth', 1.2);
-set(gca, 'xScale', 'log', 'yScale', 'log');
-xlabel('f [Hz]'); ylabel('PSD [Hz^{-1}]'); xlim([fW(2) s.fs/2]); grid on
 
 function [nlml, m, C] = firEvidence(theta, X, y)
     % Negative log evidence of Bayesian linear regression y = X*h + e with
