@@ -20,14 +20,19 @@ fs = 1/mean(diff(t_full));
 config = loadDefaultConfig();
 config.preproc.DSmode = 'rate';     
 config.preproc.DSvalue = 3e-4;
-config.inference.dataVariance = 1e-5;
+config.inference.dataVariance = [];   % [] = infer Ce by maximizing the marginal likelihood, or fix it, e.g. 1e-5
 
 T_IR = (1:0.25:5)*T_c;  % candidate FIR lengths
 nSamples = 5000;        % posterior samples for the FTF credible intervals
 rng(1);
 
 %% Gaussian pulse model (cached)
-cacheFile = sprintf('local/laminarPosterior_%s%g.mat', config.preproc.DSmode, config.preproc.DSvalue);
+if isempty(config.inference.dataVariance)
+    ceTag = '_CeInferred';
+else
+    ceTag = '';
+end
+cacheFile = sprintf('local/laminarPosterior_%s%g%s.mat', config.preproc.DSmode, config.preproc.DSvalue, ceTag);
 load(cacheFile, 'h', 'posterior');
 hDTD = h;
 

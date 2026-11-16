@@ -20,7 +20,7 @@ fs = 1/mean(diff(t_full));
 config = loadDefaultConfig();
 config.preproc.DSmode = 'rate';   
 config.preproc.DSvalue = 3e-4;
-config.inference.dataVariance = 1e-5;
+config.inference.dataVariance = [];   % [] = infer Ce by maximizing the marginal likelihood, or fix it, e.g. 1e-5
 modelOrders = 1:5;
 
 nWelch = 2^15;       % Welch segment length -> df = fs/nWelch ~ 30 Hz
@@ -40,7 +40,12 @@ signalsDS = prepareSignals(u_full, q_full, fs, 0, config);
 f_nyq = signalsDS.time_domain.coarse.fs/2;
 
 %% Bayesian inference and model PSD
-cacheFile = sprintf('local/laminarPosterior_%s%g.mat', config.preproc.DSmode, config.preproc.DSvalue);
+if isempty(config.inference.dataVariance)
+    ceTag = '_CeInferred';
+else
+    ceTag = '';
+end
+cacheFile = sprintf('local/laminarPosterior_%s%g%s.mat', config.preproc.DSmode, config.preproc.DSvalue, ceTag);
 if isfile(cacheFile)
     load(cacheFile, 'h', 'posterior', 'modelRanking');
 else

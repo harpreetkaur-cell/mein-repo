@@ -21,12 +21,17 @@ fs = 1/mean(diff(t_full));
 config = loadDefaultConfig();
 config.preproc.DSmode = 'rate';
 config.preproc.DSvalue = 3e-4;
-config.inference.dataVariance = 1e-5;
+config.inference.dataVariance = [];   % [] = infer Ce by maximizing the marginal likelihood, or fix it, e.g. 1e-5
 
 nWelch = 2^15;       % Welch segment length -> df = fs/nWelch ~ 30 Hz
 
 %% Gaussian pulse model (cached, see analyzeLaminarSpectra)
-cacheFile = sprintf('local/laminarPosterior_%s%g.mat', config.preproc.DSmode, config.preproc.DSvalue);
+if isempty(config.inference.dataVariance)
+    ceTag = '_CeInferred';
+else
+    ceTag = '';
+end
+cacheFile = sprintf('local/laminarPosterior_%s%g%s.mat', config.preproc.DSmode, config.preproc.DSvalue, ceTag);
 load(cacheFile, 'posterior');
 nPulse = numel(posterior.a)/3;
 
@@ -115,9 +120,10 @@ figure(2); clf
 for model = 1:2
     p = exp(thK{model});
     if model == 1
-        parText = sprintf('l = %.2f T_c, f_c = %.0f Hz', p(2)/T_c, p(3));
+        parText = sprintf('\\sigma^2 = %.1e, l = %.2f T_c, f_c = %.0f Hz', p(1), p(2)/T_c, p(3));
     else
-        parText = sprintf('l_1 = %.2f T_c, l_2 = %.2f T_c, f_c = %.0f Hz', p(2)/T_c, p(4)/T_c, p(5));
+        parText = sprintf('\\sigma_1^2 = %.1e, l_1 = %.2f T_c, \\sigma_2^2 = %.1e, l_2 = %.2f T_c, f_c = %.0f Hz', ...
+            p(1), p(2)/T_c, p(3), p(4)/T_c, p(5));
     end
 
     subplot(2, 2, model)
