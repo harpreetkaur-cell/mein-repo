@@ -7,7 +7,9 @@
 % Figure 1: PSD of q, data vs. Bayesian model (cf. analyzeLaminarSpectra Fig. 2)
 % Figure 2: impulse response, FIR vs. Gaussian pulses (cf. analyzeLaminarFIR Fig. 2)
 % Figure 3: FTF gain and phase, FIR vs. Gaussian pulses (cf. analyzeLaminarFIR Fig. 3)
-% Figure 4: AC and PSD of q_kernel = q - q_BI with the fitted kernel
+% Figure 4: PSD of q_CFD, q_BI and q_kernel = q_CFD - q_BI for the inferred Ce
+%           (cf. analyzeLaminarKernelPSD Fig. 1)
+% Figure 5: AC and PSD of q_kernel = q - q_BI with the fitted kernel
 %           Matern + Matern x cos (cf. analyzeLaminarKernelPSD)
 
 %% Load data
@@ -199,7 +201,7 @@ end
 xlabel('f [Hz]'); ylabel('Phase [rad]'); xlim([0 s.fs/2]); grid on
 
 % q_kernel and fitted kernel Matern + Matern x cos
-figure(4); clf
+figure(5); clf
 subplot(2,1,1)
 for c = 1:nCase
     plot(tLag/T_c, res(c).acK, 'color', colour{c}, 'lineWidth', 1.2); hold on
@@ -223,6 +225,22 @@ xline(f_cut, 'k--');
 set(gca, 'xScale', 'log', 'yScale', 'log');
 xlabel('f [Hz]'); ylabel('PSD [Hz^{-1}]'); xlim(fLim); ylim([1e-14 1e-7]); grid on
 legend(p, labels, 'location', 'southwest')
+
+% q_CFD, q_BI and q_kernel for the inferred Ce
+cInf = find(~cellfun(@isempty, ceTags), 1);
+r = res(cInf);
+figure(4); clf
+patchCI(f(ok), r.PqqCI(ok,:), grey); hold on
+patchCI(f(ok), r.PbbCI(ok,:), colour{cInf});
+patchCI(f(ok), r.PkkCI(ok,:), blue);
+p1 = loglog(f(ok), r.Pqq(ok), 'k', 'lineWidth', 1);
+p2 = loglog(f(ok), r.Pbb(ok), 'color', colour{cInf}, 'lineWidth', 1.2);
+p3 = loglog(f(ok), r.Pkk(ok), 'color', blue, 'lineWidth', 1.2);
+xline(f_cut, 'k--', sprintf('f_{cut} = %.0f Hz', f_cut), 'labelVerticalAlignment', 'bottom');
+set(gca, 'xScale', 'log', 'yScale', 'log');
+xlabel('f [Hz]'); ylabel('PSD [Hz^{-1}]'); xlim(fLim); ylim([1e-18 1e-4]); grid on
+legend([p1 p2 p3], 'q_{CFD} (data)', sprintf('q_{BI} (%s)', names{cInf}), ...
+    'q_{kernel} = q_{CFD} - q_{BI}', 'location', 'southwest')
 
 function P = sumKernelPSD(f, th)
     % One-sided PSD [1/Hz] of Matern(3/2) + Matern(3/2) x cos,
