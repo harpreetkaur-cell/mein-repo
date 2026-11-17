@@ -63,17 +63,21 @@ f_cut = f(find(cumsum(Puu)/sum(Puu) >= 0.999, 1, 'first'));
 %      parameters sigma^2, l, f_c
 %   2: Matern(3/2) + Matern(3/2) x cos    -> broad low-pass plus a separate narrow peak
 %      parameters sigma_1^2, l_1 (low-pass), sigma_2^2, l_2, f_c (peak)
+% Both kernels are multiplied by a low-pass at the cutoff frequency of the forcing,
+% 1/(1 + (f/f_cut)^(2n)), because q_kernel = q - h*u has no energy where u has none.
+% The order n is fitted.
 % A high-pass (Zimmermann Eq. 19) is left out: the PSD of q_kernel is flat at low f.
-% Fitted with the Whittle likelihood (Zimmermann Eq. 20) up to f_cut.
-modelNames = {'Matern x cos', 'Matern + Matern x cos'};
-fitBins = f > 0 & f <= f_cut;
+% Fitted with the Whittle likelihood (Zimmermann Eq. 20) up to fFitMax.
+modelNames = {'Matern x cos x LP', 'Matern + Matern x cos, x LP'};
+fFitMax = 3000;                         % just above f_cut, below the numerical noise floor
+fitBins = f > 0 & f <= fFitMax;
 opts = optimset('Display', 'off', 'MaxFunEvals', 4e4, 'MaxIter', 4e4, 'TolX', 1e-8, 'TolFun', 1e-8);
-starts = {log([var(qK); T_c/3; 400]), ...                        % model 1: [sigma^2; l; f_c]
-          log([repmat([var(qK)/2; T_c/6; var(qK)/2], 1, 3); [0.5 1 2]*T_c; 420 420 420])}; % model 2: [sigma_1^2; l_1; sigma_2^2; l_2; f_c]
+starts = {log([var(qK); T_c/3; 400; 10]), ...                    % model 1: [sigma^2; l; f_c; n]
+          log([repmat([var(qK)/2; T_c/6; var(qK)/2], 1, 3); [0.5 1 2]*T_c; 420 420 420; 10 10 10])}; % model 2: [sigma_1^2; l_1; sigma_2^2; l_2; f_c; n]
 thK = cell(1, 2);
 for model = 1:2
-    whittle = @(th) sum(log(kernelPSD(f(fitBins), th, model)) ...
-        + Pkk(fitBins)./kernelPSD(f(fitBins), th, model));
+    whittle = @(th) sum(log(kernelPSD(f(fitBins), th, model, f_cut)) ...
+        + Pkk(fitBins)./kernelPSD(f(fitBins), th, model, f_cut));
     th0 = starts{model};
     best = inf;
     for j = 1:size(th0, 2)              % a few starts for the peak width
@@ -92,7 +96,7 @@ tAC = linspace(0, lagMax*T_c, 300)';
 fInt = (0:1:5e4)';                      % frequency grid for the inverse transform
 acModel = zeros(numel(tAC), 2);
 for model = 1:2
-    Pint = kernelPSD(fInt, thK{model}, model);
+    Pint = kernelPSD(fInt, thK{model}, model, f_cut);
     acModel(:,model) = cos(2*pi*tAC*fInt') * Pint / sum(Pint);
 end
 
@@ -120,10 +124,10 @@ figure(2); clf
 for model = 1:2
     p = exp(thK{model});
     if model == 1
-        parText = sprintf('\\sigma^2 = %.1e, l = %.2f T_c, f_c = %.0f Hz', p(1), p(2)/T_c, p(3));
+        parText = sprintf('\\sigma^2 = %.1e, l = %.2f T_c, f_c = %.0f Hz, n = %.1f', p(1), p(2)/T_c, p(3), p(4));
     else
-        parText = sprintf('\\sigma_1^2 = %.1e, l_1 = %.2f T_c, \\sigma_2^2 = %.1e, l_2 = %.2f T_c, f_c = %.0f Hz', ...
-            p(1), p(2)/T_c, p(3), p(4)/T_c, p(5));
+        parText = sprintf('\\sigma_1^2 = %.1e, l_1 = %.2f T_c, \\sigma_2^2 = %.1e, l_2 = %.2f T_c, f_c = %.0f Hz, n = %.1f', ...
+            p(1), p(2)/T_c, p(3), p(4)/T_c, p(5), p(6));
     end
 
     subplot(2, 2, model)
@@ -136,23 +140,24 @@ for model = 1:2
     subplot(2, 2, model + 2)
     patchCI(f(ok), PkkCI(ok,:), blue); hold on
     p1 = loglog(f(ok), Pkk(ok), 'color', blue, 'lineWidth', 1.2);
-    p2 = loglog(f(ok), kernelPSD(f(ok), thK{model}, model), 'color', red, 'lineWidth', 1.5);
+    p2 = loglog(f(ok), kernelPSD(f(ok), thK{model}, model, f_cut), 'color', red, 'lineWidth', 1.5);
     xline(f_cut, 'k--');
     set(gca, 'xScale', 'log', 'yScale', 'log');
     xlabel('f [Hz]'); ylabel('PSD [Hz^{-1}]'); xlim(fLim); ylim([1e-14 1e-7]); grid on
-    legend([p1 p2], 'q_{kernel}', parText, 'location', 'southwest')
+    legend([p1 p2], 'q_{kernel}', parText, 'location', 'southwest', 'fontSize', 7)
 end
 
-function P = kernelPSD(f, th, model)
-    % One-sided PSD [1/Hz] of the kernel.
-    %   model 1: th = log [sigma^2; l; f_c]
-    %   model 2: th = log [sigma_1^2; l_1; sigma_2^2; l_2; f_c]
+function P = kernelPSD(f, th, model, fLP)
+    % One-sided PSD [1/Hz] of the kernel, times a low-pass of order n at fLP.
+    %   model 1: th = log [sigma^2; l; f_c; n]
+    %   model 2: th = log [sigma_1^2; l_1; sigma_2^2; l_2; f_c; n]
     p = exp(th);
     if model == 1
         P = maternCosPSD(f, p(1), p(2), p(3));
     else
         P = maternCosPSD(f, p(1), p(2), 0) + maternCosPSD(f, p(3), p(4), p(5));
     end
+    P = P ./ (1 + (f/fLP).^(2*p(end)));         % low-pass at the cutoff frequency of u
 end
 
 function P = maternCosPSD(f, s2, l, fc)
